@@ -150,7 +150,7 @@ function faqAnswer(text: string): { reply: string; quick?: string[] } | null {
         `We currently run four programmes:\n\n` +
         COURSES.map((c) => `• **${c.name}** — ${c.duration}, ${c.fees}`).join("\n") +
         `\n\nWhich one should I break down for you?`,
-      quick: COURSES.map((c) => c.name.split(" (")[0]),
+      quick: COURSES.map((c) => c.name.split(" (")[0] ?? c.name),
     };
   }
 
@@ -251,14 +251,14 @@ export async function generateReply(userText: string, state: ChatState): Promise
     s.stage = "ask_course";
     return {
       reply: `Got it. Which programme are you interested in?`,
-      quickReplies: COURSES.map((c) => c.name.split(" (")[0]),
+      quickReplies: COURSES.map((c) => c.name.split(" (")[0] ?? c.name),
       state: s,
     };
   }
 
   if (s.stage === "ask_course") {
     const course = findCourse(userText);
-    s.draft.courseId = course?.id;
+    if (course) s.draft.courseId = course.id;
     s.stage = "ask_timeline";
     return {
       reply: course
@@ -272,7 +272,7 @@ export async function generateReply(userText: string, state: ChatState): Promise
   if (s.stage === "ask_timeline") {
     const t = norm(userText);
     s.draft.timeline =
-      TIMELINES.find((x) => t.includes(norm(x).split(" ")[0])) ??
+      TIMELINES.find((x) => t.includes(norm(x).split(" ")[0] ?? norm(x))) ??
       (t.includes("explor") ? "Just exploring" : "This month");
     s.stage = "done";
     const lead = buildLead(s);
@@ -311,7 +311,9 @@ export async function generateReply(userText: string, state: ChatState): Promise
 
   const faq = faqAnswer(userText);
   if (faq) {
-    return { reply: faq.reply, quickReplies: faq.quick, state: s };
+    return faq.quick
+      ? { reply: faq.reply, quickReplies: faq.quick, state: s }
+      : { reply: faq.reply, state: s };
   }
 
   return {
